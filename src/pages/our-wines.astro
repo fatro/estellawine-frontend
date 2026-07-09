@@ -15,13 +15,7 @@ let error = null;
 
 try {
   wines = await client.request(
-    readItems('wines', {
-      filter: {
-        brand: {
-          _eq: 'Estella Wine',
-        },
-      },
-    })
+    readItems('estella_wines')
   );
 } catch (e) {
   console.error('Error fetching wines from Directus:', e);
