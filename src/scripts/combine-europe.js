@@ -87,7 +87,7 @@ async function main() {
     fetchAndCache(SOURCES.italyRegions),
   ]);
 
-  // ── 1. Europe Main Projection ──
+  // ── 1. Europe Main Projection (Middle Pane: width 840, offset by +180px) ──
   const lonMin = -6.0, lonMax = 19.5;
   const latMin = 35.5, latMax = 53.8;
 
@@ -101,7 +101,7 @@ async function main() {
   const VBW = 1200, VBH = 650;
   const mapWidth = 840;
   const scaleFactor = Math.min(mapWidth / pw, VBH / ph);
-  const offsetX = (mapWidth - pw * scaleFactor) / 2;
+  const offsetX = 180 + (mapWidth - pw * scaleFactor) / 2;
   const offsetY = (VBH - ph * scaleFactor) / 2;
 
   function projectEurope(lon, lat) {
@@ -112,8 +112,8 @@ async function main() {
     ];
   }
 
-  // ── 2. South America Inset (Chile & Argentina in Column 1 with Padding) ──
-  const destSA = { x: 865, y: 70, w: 130, h: 510 };
+  // ── 2. South America Inset (Column 1 on far left: x = 0 to 180, dest: x=25, y=70, w=130, h=510) ──
+  const destSA = { x: 25, y: 70, w: 130, h: 510 };
   const [saPxMin, saPyBottom] = mercator(-76.0, -56.0);
   const [saPxMax, saPyTop] = mercator(-53.0, -20.0);
   const sapw = saPxMax - saPxMin;
@@ -130,7 +130,7 @@ async function main() {
     ];
   }
 
-  // ── 3. South Africa Inset (Column 2 Top with Padding) ──
+  // ── 3. South Africa Inset (Column 3 Top on far right: x = 1020 to 1200, dest: x=1045, y=70, w=130, h=210) ──
   const destAfr = { x: 1045, y: 70, w: 130, h: 210 };
   const [afrPxMin, afrPyBottom] = mercator(14.0, -36.0);
   const [afrPxMax, afrPyTop] = mercator(35.0, -21.0);
@@ -148,7 +148,7 @@ async function main() {
     ];
   }
 
-  // ── 4. Oceania Inset (Australia & New Zealand in Column 2 Bottom with Padding) ──
+  // ── 4. Oceania Inset (Column 3 Bottom on far right: x = 1020 to 1200, dest: x=1045, y=360, w=130, h=220) ──
   const destOceania = { x: 1045, y: 360, w: 130, h: 220 };
   const [ocPxMin, ocPyBottom] = mercator(112.0, -48.0);
   const [ocPxMax, ocPyTop] = mercator(180.0, -10.0);
@@ -171,17 +171,17 @@ async function main() {
 
   // Draw dividers
   svg += `  <!-- Inset Separators -->\n`;
-  svg += `  <line x1="840" y1="20" x2="840" y2="630" stroke="rgba(155, 124, 86, 0.25)" stroke-width="1.5" stroke-dasharray="6 6" />\n`;
+  svg += `  <line x1="180" y1="20" x2="180" y2="630" stroke="rgba(155, 124, 86, 0.25)" stroke-width="1.5" stroke-dasharray="6 6" />\n`;
   svg += `  <line x1="1020" y1="20" x2="1020" y2="630" stroke="rgba(155, 124, 86, 0.25)" stroke-width="1.5" stroke-dasharray="6 6" />\n`;
   
-  // South America Header
-  svg += `  <text x="930" y="40" font-family="'Outfit', sans-serif" font-size="11" font-weight="600" fill="rgba(155, 124, 86, 0.85)" text-anchor="middle" letter-spacing="1">SOUTH AMERICA</text>\n`;
+  // South America Header (Far Left Column)
+  svg += `  <text x="90" y="40" font-family="'Outfit', sans-serif" font-size="11" font-weight="600" fill="rgba(155, 124, 86, 0.85)" text-anchor="middle" letter-spacing="1">SOUTH AMERICA</text>\n`;
 
-  // South Africa Header
+  // South Africa Header (Far Right Column Top)
   svg += `  <text x="1110" y="40" font-family="'Outfit', sans-serif" font-size="11" font-weight="600" fill="rgba(155, 124, 86, 0.85)" text-anchor="middle" letter-spacing="1">SOUTH AFRICA</text>\n`;
   svg += `  <line x1="1020" y1="310" x2="1200" y2="310" stroke="rgba(155, 124, 86, 0.2)" stroke-width="1.0" stroke-dasharray="4 4" />\n`;
 
-  // Oceania Header
+  // Oceania Header (Far Right Column Bottom)
   svg += `  <text x="1110" y="335" font-family="'Outfit', sans-serif" font-size="11" font-weight="600" fill="rgba(155, 124, 86, 0.85)" text-anchor="middle" letter-spacing="1">OCEANIA</text>\n\n`;
 
   // 1) Render Active European Countries (ONLY France, Italy, Spain, Germany, Austria)
@@ -248,7 +248,7 @@ async function main() {
   }
   svg += `  </g>\n\n`;
 
-  // 4) South America Inset (Chile & Argentina side-by-side in Column 1)
+  // 4) South America Inset (Chile & Argentina side-by-side in Column 1 on Left)
   svg += `  <!-- South America Inset -->\n`;
   for (const feature of countriesGeo.features) {
     const name = feature.properties.ADMIN || feature.properties.NAME;
@@ -271,7 +271,7 @@ async function main() {
     }
   }
 
-  // 5) South Africa Inset (Column 2 Top)
+  // 5) South Africa Inset (Column 3 Top)
   svg += `  <!-- South Africa Inset -->\n`;
   for (const feature of countriesGeo.features) {
     const name = feature.properties.ADMIN || feature.properties.NAME;
@@ -285,7 +285,7 @@ async function main() {
     }
   }
 
-  // 6) Oceania Inset (Australia & New Zealand in Column 2 Bottom)
+  // 6) Oceania Inset (Australia & New Zealand in Column 3 Bottom)
   svg += `  <!-- Oceania Inset -->\n`;
   for (const feature of countriesGeo.features) {
     const name = feature.properties.ADMIN || feature.properties.NAME;
@@ -338,7 +338,7 @@ async function main() {
     Veneto:         { type: 'europe', lon: 11.8, lat: 45.5 },
     Friuli:         { type: 'europe', lon: 13.2, lat: 46.1 },
     Tuscany:        { type: 'europe', lon: 11.2, lat: 43.3 },
-    Sicily:         { type: 'absolute', x: 50.1, y: 90.0 }, // Keep Sicily pinned explicitly
+    Sicily:         { type: 'europe', lon: 14.0, lat: 37.6 },
     Germany:        { type: 'europe', lon: 10.4, lat: 50.8 },
     Austria:        { type: 'europe', lon: 14.5, lat: 47.6 },
     Spain:          { type: 'europe', lon: -3.7, lat: 40.5 },
@@ -357,7 +357,6 @@ async function main() {
     else if (s.type === 'sa') [x, y] = projectSA(s.lon, s.lat);
     else if (s.type === 'saf') [x, y] = projectAfr(s.lon, s.lat);
     else if (s.type === 'oceania') [x, y] = projectOceania(s.lon, s.lat);
-    else if (s.type === 'absolute') { x = (s.x / 100) * VBW; y = (s.y / 100) * VBH; }
 
     const pctLeft = (x / VBW * 100).toFixed(1);
     const pctTop = (y / VBH * 100).toFixed(1);
