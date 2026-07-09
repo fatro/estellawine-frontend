@@ -1,17 +1,1770 @@
 ---
+import { createDirectus, rest, readItems } from '@directus/sdk';
+import fs from 'fs';
+import path from 'path';
 
+// Initialize Directus SDK client
+const client = createDirectus('http://168.144.130.147:8055').with(rest());
+
+// Load combined Europe SVG map
+const europeSvgPath = path.join(process.cwd(), 'public/combined-europe.svg');
+const europeSvg = fs.readFileSync(europeSvgPath, 'utf8');
+
+let wines = [];
+let error = null;
+
+try {
+  wines = await client.request(
+    readItems('wines', {
+      filter: {
+        brand: {
+          _eq: 'Estella Wine',
+        },
+      },
+    })
+  );
+} catch (e) {
+  console.error('Error fetching wines from Directus:', e);
+  error = e.message;
+}
+
+// Calculate counts dynamically from CMS catalog
+const counts = {
+  regions: {},
+  countries: {}
+};
+
+wines.forEach(wine => {
+  const loc = getWineLocation(wine.region);
+  if (loc.region) {
+    counts.regions[loc.region] = (counts.regions[loc.region] || 0) + 1;
+  } else if (wine.region) {
+    const norm = wine.region.trim();
+    counts.regions[norm] = (counts.regions[norm] || 0) + 1;
+  }
+  if (loc.country) {
+    counts.countries[loc.country] = (counts.countries[loc.country] || 0) + 1;
+  }
+});
+
+// Map regions to parent categories for filtering on the map
+function getWineLocation(region) {
+  const normalized = (region || '').trim();
+  
+  if (['Piedmont', 'Barolo'].includes(normalized)) {
+    return { country: 'Italy', region: 'Piedmont' };
+  }
+  if (['Tuscany', 'Brunello di Montalcino'].includes(normalized)) {
+    return { country: 'Italy', region: 'Tuscany' };
+  }
+  if (['Veneto'].includes(normalized)) {
+    return { country: 'Italy', region: 'Veneto' };
+  }
+  if (['Friuli Venezia Giulia'].includes(normalized)) {
+    return { country: 'Italy', region: 'Friuli Venezia Giulia' };
+  }
+  if (['Sicily'].includes(normalized)) {
+    return { country: 'Italy', region: 'Sicily' };
+  }
+  if (['Italy'].includes(normalized)) {
+    return { country: 'Italy', region: 'Italy' };
+  }
+
+  if (['Loire', 'Vouvray', 'Saumur'].includes(normalized)) {
+    return { country: 'France', region: 'Loire' };
+  }
+  if (['Bordeaux', 'Pomerol', 'Saint Émilion'].includes(normalized)) {
+    return { country: 'France', region: 'Bordeaux' };
+  }
+  if (['Champagne'].includes(normalized)) {
+    return { country: 'France', region: 'Champagne' };
+  }
+  if (['Alsace'].includes(normalized)) {
+    return { country: 'France', region: 'Alsace' };
+  }
+  if (['France', 'Roussillon'].includes(normalized)) {
+    return { country: 'France', region: 'France' };
+  }
+
+  if (['Spain', 'Austria', 'Germany', 'Chile'].includes(normalized)) {
+    return { country: normalized, region: normalized };
+  }
+
+  return { country: 'Unknown', region: normalized };
+}
+
+function formatWineRegion(region) {
+  const normalized = (region || '').trim();
+  if (!normalized) return 'Unknown Region';
+  
+  const loc = getWineLocation(normalized);
+  
+  const flags = {
+    'Italy': '🇮🇹',
+    'France': '🇫🇷',
+    'Spain': '🇪🇸',
+    'Austria': '🇦🇹',
+    'Germany': '🇩🇪',
+    'Chile': '🇨🇱'
+  };
+  
+  const flag = flags[loc.country] || '';
+  const flagPrefix = flag ? `${flag} ` : '';
+  
+  if (loc.region && loc.region !== normalized && loc.region !== loc.country) {
+    return `${flagPrefix}${loc.region} — ${normalized}`;
+  }
+  
+  return `${flagPrefix}${normalized}`;
+}
+
+function parseGrapeVarieties(varieties) {
+  if (!varieties || !Array.isArray(varieties)) return [];
+  
+  let result = [];
+  varieties.forEach(item => {
+    if (typeof item !== 'string') return;
+    
+    // Split combined strings like "60% Zweigelt 35% Blaufrankisch" into individual elements
+    const regex = /(\d+%\s*[^0-9%/\-]+)/g;
+    const matchesList = item.match(regex);
+    if (matchesList && matchesList.length > 1) {
+      matchesList.forEach(m => {
+        let cleaned = m.trim().replace(/^[\s\/|\-]+|[\s\/|\-]+$/g, '').trim();
+        if (cleaned) result.push(cleaned);
+      });
+    } else {
+      result.push(item);
+    }
+  });
+  return result;
+}
 ---
 
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Estella Wine — Premium Wine Catalog</title>
+    
+    <!-- Premium Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <!-- Sidebar Navigation Drawer -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <div class="sidebar-drawer" id="sidebarDrawer">
+      <button class="sidebar-close" id="sidebarCloseBtn" aria-label="Close menu">&times;</button>
+      <div class="sidebar-logo">
+        <img src="/estellawine_logo.png" alt="Estella Wine Logo" class="logo-image" />
+      </div>
+      <nav class="sidebar-links">
+        <a href="/" class="sidebar-link active">Our Wines</a>
+        <a href="/where-find-our-wines" class="sidebar-link">Where to Find Us</a>
+        <a href="/about" class="sidebar-link">Our Story</a>
+        <a href="/contact-us" class="sidebar-link">Contact Us</a>
+      </nav>
+      <div class="sidebar-socials">
+        <a href="https://www.instagram.com/estellawine" target="_blank" rel="noopener noreferrer" class="social-link sidebar-social" aria-label="Instagram">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+          </svg>
+        </a>
+        <a href="https://www.facebook.com/estellawine" target="_blank" rel="noopener noreferrer" class="social-link sidebar-social" aria-label="Facebook">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <header class="navbar">
+      <div class="container navbar-top">
+        <!-- Hamburger Menu Icon on Left -->
+        <button class="hamburger-btn" id="hamburgerMenuBtn" aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+
+        <!-- Centered Logo -->
+        <a href="/" class="brand-logo">
+          <img src="/estellawine_logo.png" alt="Estella Wine Logo" class="logo-image" />
+        </a>
+
+        <!-- Right Side Social Icons (Desktop) / Spacer (Mobile) -->
+        <div class="navbar-right">
+          <a href="https://www.instagram.com/estellawine" target="_blank" rel="noopener noreferrer" class="social-link header-social" aria-label="Instagram">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+            </svg>
+          </a>
+          <a href="https://www.facebook.com/estellawine" target="_blank" rel="noopener noreferrer" class="social-link header-social" aria-label="Facebook">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <div class="navbar-bottom">
+      <nav class="nav-links">
+        <a href="/" class="nav-link active">Our Wines</a>
+        <a href="/where-find-our-wines" class="nav-link">Where to Find Us</a>
+        <a href="/about" class="nav-link">Our Story</a>
+        <a href="/contact-us" class="nav-link">Contact Us</a>
+      </nav>
+    </div>
+
+    <main class="main-content">
+      <section class="hero-section">
+        <div class="container text-center">
+          <span class="subtitle">Exquisite Selection</span>
+          <h1 class="hero-title">The Estella Collection</h1>
+          <div class="hero-divider"></div>
+          <p class="hero-description">
+            Handcrafted luxury wines, cultivated from premium vineyards and curated for the most discerning palates.
+          </p>
+        </div>
+      </section>
+
+      <!-- Interactive Maps Section -->
+      <section class="map-section">
+        <div class="container">
+          <div class="map-dashboard-header text-center">
+            <span class="subtitle">Our Vineyards</span>
+            <h2 class="section-title">Explore by Region</h2>
+            <p class="section-description">Select a region or country on the map to filter our collection</p>
+          </div>
+          
+          <div class="map-dashboard-grid single-map-layout">
+            <!-- Europe Panel -->
+            <div class="map-card europe-map-card">
+              <h3 class="map-card-title">Our Wine Selections from Europe & Beyond <span class="badge">298 Wines</span></h3>
+              
+              <!-- Desktop Map View (Hidden on mobile) -->
+              <div class="desktop-map-view">
+                <div class="svg-map-wrapper">
+                  <!-- Inline SVG Map of Europe -->
+                  <Fragment set:html={europeSvg} />
+                  
+                  <!-- Hotspots Overlay -->
+                  <div class="map-hotspots-overlay" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none;">
+                    <!-- --- FRANCE HOTSPOTS --- -->
+                    {counts.regions['Champagne'] > 0 && (
+                      <div class="hotspot" data-filter-region="Champagne" style="position: absolute; top: 30.7%; left: 29.3%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇫🇷 Champagne ({counts.regions['Champagne']})</span>
+                      </div>
+                    )}
+                    {counts.regions['Alsace'] > 0 && (
+                      <div class="hotspot" data-filter-region="Alsace" style="position: absolute; top: 33.6%; left: 36.1%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇫🇷 Alsace ({counts.regions['Alsace']})</span>
+                      </div>
+                    )}
+                    {counts.regions['Loire'] > 0 && (
+                      <div class="hotspot" data-filter-region="Loire" style="position: absolute; top: 38.8%; left: 22.4%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇫🇷 Loire ({counts.regions['Loire']})</span>
+                      </div>
+                    )}
+                    {counts.regions['Bordeaux'] > 0 && (
+                      <div class="hotspot" data-filter-region="Bordeaux" style="position: absolute; top: 53.2%; left: 19.7%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇫🇷 Bordeaux ({counts.regions['Bordeaux']})</span>
+                      </div>
+                    )}
+
+                    <!-- --- ITALY HOTSPOTS --- -->
+                    {counts.regions['Piedmont'] > 0 && (
+                      <div class="hotspot" data-filter-region="Piedmont" style="position: absolute; top: 53.2%; left: 37.4%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇮🇹 Piedmont ({counts.regions['Piedmont']})</span>
+                      </div>
+                    )}
+                    {counts.regions['Veneto'] > 0 && (
+                      <div class="hotspot" data-filter-region="Veneto" style="position: absolute; top: 49.4%; left: 45.5%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇮🇹 Veneto ({counts.regions['Veneto']})</span>
+                      </div>
+                    )}
+                    {counts.regions['Friuli Venezia Giulia'] > 0 && (
+                      <div class="hotspot" data-filter-region="Friuli Venezia Giulia" style="position: absolute; top: 46.1%; left: 48.4%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇮🇹 Friuli ({counts.regions['Friuli Venezia Giulia']})</span>
+                      </div>
+                    )}
+                    {counts.regions['Tuscany'] > 0 && (
+                      <div class="hotspot" data-filter-region="Tuscany" style="position: absolute; top: 61.2%; left: 44.3%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇮🇹 Tuscany ({counts.regions['Tuscany']})</span>
+                      </div>
+                    )}
+                    {counts.regions['Sicily'] > 0 && (
+                      <div class="hotspot" data-filter-region="Sicily" style="position: absolute; top: 90.0%; left: 50.1%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇮🇹 Sicily ({counts.regions['Sicily']})</span>
+                      </div>
+                    )}
+
+                    <!-- --- ACTIVE COUNTRIES --- -->
+                    {counts.countries['Germany'] > 0 && (
+                      <div class="hotspot" data-filter-country="Germany" style="position: absolute; top: 18.8%; left: 42.6%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇩🇪 Germany ({counts.countries['Germany']})</span>
+                      </div>
+                    )}
+                    {counts.countries['Austria'] > 0 && (
+                      <div class="hotspot" data-filter-country="Austria" style="position: absolute; top: 37.6%; left: 51.1%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇦🇹 Austria ({counts.countries['Austria']})</span>
+                      </div>
+                    )}
+                    {counts.countries['Spain'] > 0 && (
+                      <div class="hotspot" data-filter-country="Spain" style="position: absolute; top: 75.6%; left: 13.3%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇪🇸 Spain ({counts.countries['Spain']})</span>
+                      </div>
+                    )}
+
+                    <!-- --- SOUTH AMERICA --- -->
+                    {counts.countries['Chile'] > 0 && (
+                      <div class="hotspot" data-filter-country="Chile" style="position: absolute; top: 43.1%; left: 74.2%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇨🇱 Chile ({counts.countries['Chile']})</span>
+                      </div>
+                    )}
+                    {counts.countries['Argentina'] > 0 && (
+                      <div class="hotspot" data-filter-country="Argentina" style="position: absolute; top: 43.1%; left: 77.3%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇦🇷 Argentina ({counts.countries['Argentina']})</span>
+                      </div>
+                    )}
+
+                    <!-- --- SOUTH AFRICA --- -->
+                    {counts.countries['South Africa'] > 0 && (
+                      <div class="hotspot" data-filter-country="South Africa" style="position: absolute; top: 29.4%; left: 91.2%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇿🇦 South Africa ({counts.countries['South Africa']})</span>
+                      </div>
+                    )}
+
+                    <!-- --- OCEANIA --- -->
+                    {counts.countries['Australia'] > 0 && (
+                      <div class="hotspot" data-filter-country="Australia" style="position: absolute; top: 70.4%; left: 90.4%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇦🇺 Australia ({counts.countries['Australia']})</span>
+                      </div>
+                    )}
+                    {counts.countries['New Zealand'] > 0 && (
+                      <div class="hotspot" data-filter-country="New Zealand" style="position: absolute; top: 76.0%; left: 96.6%; pointer-events: auto;">
+                        <span class="hotspot-label-card">🇳🇿 New Zealand ({counts.countries['New Zealand']})</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Mobile Text Filters (Only visible on mobile) -->
+              <div class="mobile-text-filters">
+                <!-- France -->
+                <div class="mobile-filter-group">
+                  <span class="group-label">🇫🇷 France</span>
+                  <div class="mobile-filter-pills">
+                    {counts.regions['Champagne'] > 0 && <button class="mobile-filter-pill" data-filter-region="Champagne">Champagne ({counts.regions['Champagne']})</button>}
+                    {counts.regions['Alsace'] > 0 && <button class="mobile-filter-pill" data-filter-region="Alsace">Alsace ({counts.regions['Alsace']})</button>}
+                    {counts.regions['Loire'] > 0 && <button class="mobile-filter-pill" data-filter-region="Loire">Loire ({counts.regions['Loire']})</button>}
+                    {counts.regions['Bordeaux'] > 0 && <button class="mobile-filter-pill" data-filter-region="Bordeaux">Bordeaux ({counts.regions['Bordeaux']})</button>}
+                  </div>
+                </div>
+                
+                <!-- Italy -->
+                <div class="mobile-filter-group">
+                  <span class="group-label">🇮🇹 Italy</span>
+                  <div class="mobile-filter-pills">
+                    {counts.regions['Piedmont'] > 0 && <button class="mobile-filter-pill" data-filter-region="Piedmont">Piedmont ({counts.regions['Piedmont']})</button>}
+                    {counts.regions['Veneto'] > 0 && <button class="mobile-filter-pill" data-filter-region="Veneto">Veneto ({counts.regions['Veneto']})</button>}
+                    {counts.regions['Friuli Venezia Giulia'] > 0 && <button class="mobile-filter-pill" data-filter-region="Friuli Venezia Giulia">Friuli ({counts.regions['Friuli Venezia Giulia']})</button>}
+                    {counts.regions['Tuscany'] > 0 && <button class="mobile-filter-pill" data-filter-region="Tuscany">Tuscany ({counts.regions['Tuscany']})</button>}
+                    {counts.regions['Sicily'] > 0 && <button class="mobile-filter-pill" data-filter-region="Sicily">Sicily ({counts.regions['Sicily']})</button>}
+                  </div>
+                </div>
+                
+                <!-- Other Countries -->
+                <div class="mobile-filter-group">
+                  <span class="group-label">🌍 Other Countries</span>
+                  <div class="mobile-filter-pills">
+                    {counts.countries['Germany'] > 0 && <button class="mobile-filter-pill" data-filter-country="Germany">🇩🇪 Germany ({counts.countries['Germany']})</button>}
+                    {counts.countries['Austria'] > 0 && <button class="mobile-filter-pill" data-filter-country="Austria">🇦🇹 Austria ({counts.countries['Austria']})</button>}
+                    {counts.countries['Spain'] > 0 && <button class="mobile-filter-pill" data-filter-country="Spain">🇪🇸 Spain ({counts.countries['Spain']})</button>}
+                    {counts.countries['Chile'] > 0 && <button class="mobile-filter-pill" data-filter-country="Chile">🇨🇱 Chile ({counts.countries['Chile']})</button>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Active Filter indicator bar -->
+      <div class="active-filter-bar container" id="activeFilterBar" style="display: none;">
+        <div class="filter-indicator">
+          <span>Showing wines from: </span>
+          <strong id="activeFilterLabel">-</strong>
+          <span class="filter-count-badge" id="activeFilterCount">0</span>
+        </div>
+        <button class="clear-filter-btn" id="clearFilterBtn">
+          Clear Filter &times;
+        </button>
+      </div>
+
+      <section class="catalog-section">
+        <div class="container">
+          {error && (
+            <div class="alert alert-error">
+              <strong>Connection Error:</strong> Could not connect to the remote wine catalog database ({error}). Please ensure the Directus server is online.
+            </div>
+          )}
+
+          {!error && wines.length === 0 && (
+            <div class="empty-state">
+              <div class="empty-icon">🍷</div>
+              <h3>No Wines Found</h3>
+              <p>The Estella Wine collection is currently empty.</p>
+              <a href="http://168.144.130.147:8055/admin" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                Add Wines to CMS
+              </a>
+            </div>
+          )}
+
+          {wines.length > 0 && (
+            <div class="wine-grid">
+              {wines.map((wine) => {
+                const loc = getWineLocation(wine.region);
+                return (
+                  <article class="wine-card" data-country={loc.country} data-region={loc.region}>
+                    <div class="wine-image-container">
+                    {wine.image ? (
+                      <img 
+                        src={`http://168.144.130.147:8055/assets/${wine.image}`} 
+                        alt={wine.name} 
+                        class="wine-image" 
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div class="wine-image-placeholder">
+                        <span>🍷</span>
+                      </div>
+                    )}
+                    {wine.vintage && <span class="vintage-badge">{wine.vintage}</span>}
+                  </div>
+
+                  <div class="wine-details">
+                    <div class="wine-header">
+                      <span class="wine-producer">{wine.producer || 'Estella Wine'}</span>
+                      <h2 class="wine-name">{wine.name}</h2>
+                    </div>
+
+                    {wine.tasting_notes && (
+                      <div class="wine-description" set:html={wine.tasting_notes} />
+                    )}
+
+                    <div class="wine-meta-grid">
+                      <div>
+                        <span class="meta-label">Producer</span>
+                        <span class="meta-value">{wine.producer || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span class="meta-label">Region</span>
+                        <span class="meta-value">{formatWineRegion(wine.region).toUpperCase()}</span>
+                      </div>
+                    </div>
+
+                    {wine.grape_varieties && wine.grape_varieties.length > 0 && (
+                      <div class="wine-tags">
+                        {parseGrapeVarieties(wine.grape_varieties).map((tag: string) => (
+                          <span class="tag-badge">{tag}</span>
+                        ))}
+                      </div>
+                    )}
+
+                    {wine.scores && wine.scores.length > 0 && (
+                      <div class="wine-scores">
+                        <h4 class="scores-title">Critic Scores</h4>
+                        <ul class="scores-list">
+                          {wine.scores.map((scoreItem: any) => (
+                            <li class="score-row">
+                              <span class="score-critic">{scoreItem.critic}</span>
+                              <span class="score-badge">{scoreItem.score} pts</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container text-center">
+        <p class="footer-tagline">Fine Wine Company</p>
+        <p>&copy; {new Date().getFullYear()} Estella Wine. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script>
+      const hamburgerBtn = document.getElementById('hamburgerMenuBtn');
+      const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+      const sidebarDrawer = document.getElementById('sidebarDrawer');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
+      const navbar = document.querySelector('.navbar');
+
+      function openSidebar() {
+        if (sidebarDrawer && sidebarOverlay) {
+          sidebarDrawer.classList.add('open');
+          sidebarOverlay.classList.add('visible');
+          document.body.style.overflow = 'hidden';
+        }
+      }
+
+      function closeSidebar() {
+        if (sidebarDrawer && sidebarOverlay) {
+          sidebarDrawer.classList.remove('open');
+          sidebarOverlay.classList.remove('visible');
+          document.body.style.overflow = '';
+        }
+      }
+
+      if (hamburgerBtn && sidebarCloseBtn && sidebarOverlay) {
+        hamburgerBtn.addEventListener('click', openSidebar);
+        sidebarCloseBtn.addEventListener('click', closeSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+      }
+
+      function handleScroll() {
+        if (navbar) {
+          if (window.scrollY > 20) {
+            navbar.classList.add('scrolled');
+          } else {
+            navbar.classList.remove('scrolled');
+          }
+        }
+      }
+
+      window.addEventListener('scroll', handleScroll);
+      // Run once on load to set initial state
+      handleScroll();
+
+      // Catalog Filtering Logic
+      const hotspots = document.querySelectorAll('.hotspot, .mobile-filter-pill, .extra-filter-pill');
+      const mapRegions = document.querySelectorAll('.map-region-path, .map-country-group');
+      
+      // Deactivate map regions that have no corresponding active hotspots (0 wines in stock)
+      mapRegions.forEach(el => {
+        const region = el.getAttribute('data-filter-region');
+        const country = el.getAttribute('data-filter-country');
+        
+        let hasHotspot = false;
+        if (region) {
+          hasHotspot = document.querySelector(`.hotspot[data-filter-region="${region}"]`) !== null;
+        } else if (country) {
+          // A country group is active if the country itself has an active hotspot, 
+          // or if ANY of its nested regions have an active hotspot.
+          const countryHasHotspot = document.querySelector(`.hotspot[data-filter-country="${country}"]:not(.inactive)`) !== null;
+          let anyRegionActive = false;
+          if (country === 'France') {
+            const franceRegions = ['Champagne', 'Alsace', 'Loire', 'Bordeaux'];
+            anyRegionActive = franceRegions.some(r => document.querySelector(`.hotspot[data-filter-region="${r}"]`) !== null);
+          } else if (country === 'Italy') {
+            const italyRegions = ['Piedmont', 'Veneto', 'Friuli Venezia Giulia', 'Tuscany', 'Sicily'];
+            anyRegionActive = italyRegions.some(r => document.querySelector(`.hotspot[data-filter-region="${r}"]`) !== null);
+          }
+          hasHotspot = countryHasHotspot || anyRegionActive;
+        }
+        
+        if (!hasHotspot) {
+          // Disable pointer events and interactive cursor
+          el.style.pointerEvents = 'none';
+          el.style.cursor = 'default';
+          el.classList.remove('map-region-path');
+          
+          // Mute colors visually (faint gray outlines)
+          const paths = el.tagName === 'path' ? [el] : el.querySelectorAll('path');
+          paths.forEach(p => {
+            p.style.fill = 'rgba(155, 124, 86, 0.008)';
+            p.style.stroke = 'rgba(155, 124, 86, 0.08)';
+            p.classList.remove('map-country-fill', 'map-region-line');
+          });
+        }
+      });
+
+      const wineCards = document.querySelectorAll('.wine-card');
+      const activeFilterBar = document.getElementById('activeFilterBar');
+      const activeFilterLabel = document.getElementById('activeFilterLabel');
+      const activeFilterCount = document.getElementById('activeFilterCount');
+      const clearFilterBtn = document.getElementById('clearFilterBtn');
+
+      let activeRegion = null;
+      let activeCountry = null;
+
+      function filterCatalog() {
+        let visibleCount = 0;
+        
+        wineCards.forEach(card => {
+          const region = card.getAttribute('data-region');
+          const country = card.getAttribute('data-country');
+          
+          let match = true;
+          if (activeRegion && region !== activeRegion) {
+            match = false;
+          } else if (activeCountry && country !== activeCountry) {
+            match = false;
+          }
+          
+          if (match) {
+            (card as HTMLElement).style.display = '';
+            // Micro-delay for smooth CSS transitions
+            setTimeout(() => {
+              (card as HTMLElement).style.opacity = '1';
+              (card as HTMLElement).style.transform = 'translateY(0) scale(1)';
+            }, 50);
+            visibleCount++;
+          } else {
+            (card as HTMLElement).style.opacity = '0';
+            (card as HTMLElement).style.transform = 'translateY(10px) scale(0.98)';
+            setTimeout(() => {
+              (card as HTMLElement).style.display = 'none';
+            }, 300);
+          }
+        });
+
+        // Update visual display of filter bar
+        if (activeFilterBar && activeFilterLabel && activeFilterCount) {
+          if (activeRegion || activeCountry) {
+            activeFilterLabel.textContent = activeRegion || activeCountry;
+            activeFilterCount.textContent = String(visibleCount);
+            activeFilterBar.style.display = 'flex';
+          } else {
+            activeFilterBar.style.display = 'none';
+          }
+        }
+      }
+
+      function toggleFilter(region, country) {
+        if (region) {
+          activeRegion = activeRegion === region ? null : region;
+          activeCountry = null;
+        } else if (country) {
+          activeCountry = activeCountry === country ? null : country;
+          activeRegion = null;
+        }
+        
+        syncActiveStates();
+        filterCatalog();
+      }
+
+      function syncActiveStates() {
+        // Clear all active classes
+        hotspots.forEach(h => h.classList.remove('active'));
+        mapRegions.forEach(r => r.classList.remove('active'));
+
+        if (activeRegion) {
+          const activeH = document.querySelector(`.hotspot[data-filter-region="${activeRegion}"]`);
+          const activeR = document.querySelector(`.map-region-path[data-filter-region="${activeRegion}"]`);
+          if (activeH) activeH.classList.add('active');
+          if (activeR) activeR.classList.add('active');
+        } else if (activeCountry) {
+          const activeH = document.querySelector(`.hotspot[data-filter-country="${activeCountry}"]`);
+          const activeC = document.querySelector(`.map-country-group[data-filter-country="${activeCountry}"]`);
+          if (activeH) activeH.classList.add('active');
+          if (activeC) activeC.classList.add('active');
+        }
+      }
+
+      // Add bidirectional hover linkage
+      function addHoverLinkage(el, type, value) {
+        el.addEventListener('mouseenter', () => {
+          if (type === 'region') {
+            const matches = document.querySelectorAll(`.hotspot[data-filter-region="${value}"], .map-region-path[data-filter-region="${value}"]`);
+            matches.forEach(m => { if (m !== el) m.classList.add('hover'); });
+          } else {
+            const matches = document.querySelectorAll(`.hotspot[data-filter-country="${value}"], .map-country-group[data-filter-country="${value}"]`);
+            matches.forEach(m => { if (m !== el) m.classList.add('hover'); });
+          }
+        });
+        el.addEventListener('mouseleave', () => {
+          if (type === 'region') {
+            const matches = document.querySelectorAll(`.hotspot[data-filter-region="${value}"], .map-region-path[data-filter-region="${value}"]`);
+            matches.forEach(m => { if (m !== el) m.classList.remove('hover'); });
+          } else {
+            const matches = document.querySelectorAll(`.hotspot[data-filter-country="${value}"], .map-country-group[data-filter-country="${value}"]`);
+            matches.forEach(m => { if (m !== el) m.classList.remove('hover'); });
+          }
+        });
+      }
+
+      // Bind SVG elements
+      mapRegions.forEach(el => {
+        const region = el.getAttribute('data-filter-region');
+        const country = el.getAttribute('data-filter-country');
+        
+        if (region) addHoverLinkage(el, 'region', region);
+        if (country) addHoverLinkage(el, 'country', country);
+        
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleFilter(region, country);
+        });
+      });
+
+      // Bind Hotspots
+      hotspots.forEach(el => {
+        const region = el.getAttribute('data-filter-region');
+        const country = el.getAttribute('data-filter-country');
+        
+        if (region) addHoverLinkage(el, 'region', region);
+        if (country) addHoverLinkage(el, 'country', country);
+        
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleFilter(region, country);
+        });
+      });
+
+      function handleReset() {
+        activeRegion = null;
+        activeCountry = null;
+        hotspots.forEach(h => h.classList.remove('active'));
+        mapRegions.forEach(r => r.classList.remove('active'));
+        filterCatalog();
+      }
+
+      if (clearFilterBtn) {
+        clearFilterBtn.addEventListener('click', handleReset);
+      }
+
+      // Initialize "Read More" buttons for overflow descriptions
+      function initReadMore() {
+        const descriptions = document.querySelectorAll('.wine-description');
+        descriptions.forEach(desc => {
+          // Check if scrollHeight is larger than clientHeight (overflow detection under Webkit line clamp)
+          if (desc.scrollHeight > desc.clientHeight) {
+            const button = document.createElement('button');
+            button.className = 'read-more-btn';
+            button.textContent = 'Read More';
+            
+            // Insert after the description element
+            desc.parentNode.insertBefore(button, desc.nextSibling);
+            
+            button.addEventListener('click', (e) => {
+              e.preventDefault();
+              const isExpanded = desc.classList.toggle('expanded');
+              if (isExpanded) {
+                button.textContent = 'Read Less';
+              } else {
+                button.textContent = 'Read More';
+                // Scroll the card back into view smoothly if collapsed
+                desc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              }
+            });
+          }
+        });
+      }
+
+      // Run on DOM load
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initReadMore);
+      } else {
+        initReadMore();
+      }
+    </script>
+  </body>
 </html>
+
+<style is:global>
+  /* Premium Day Theme variables */
+  :root {
+    --bg-dark: #f8f8fa;
+    --bg-surface: rgba(255, 255, 255, 0.9);
+    --bg-surface-hover: rgba(255, 255, 255, 1);
+    --border-color: rgba(197, 168, 128, 0.25);
+    
+    --text-primary: #1c1b1f;
+    --text-secondary: #4e4b52;
+    --text-muted: #7a7680;
+    
+    --color-gold: #9b7c56;
+    --color-gold-hover: #b8966c;
+    --color-burgundy: #800020;
+    
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Reset */
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-image: url('/carrara_marble.jpg');
+    background-repeat: repeat;
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: 'Outfit', sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, .brand-logo {
+    font-family: 'Playfair Display', serif;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .text-center {
+    text-align: center;
+  }
+
+  /* Navbar styling */
+  .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 20px 0 10px 0;
+    background-color: transparent;
+    transition: background-color 0.3s ease, padding 0.3s ease, border-bottom 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .navbar.scrolled {
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    padding: 10px 0;
+  }
+
+
+
+  .navbar-top {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+  }
+
+  .brand-logo {
+    color: var(--text-primary);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+  }
+
+  .logo-image {
+    height: 32px;
+    width: auto;
+    display: block;
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .navbar.scrolled .logo-image {
+    height: 26px;
+  }
+
+  @media (max-width: 768px) {
+    .logo-image {
+      height: 24px;
+    }
+    .navbar.scrolled .logo-image {
+      height: 22px;
+    }
+  }
+
+  .hamburger-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-primary);
+    padding: 10px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-smooth);
+  }
+
+  .hamburger-btn:hover {
+    color: var(--color-gold);
+  }
+
+  .navbar-right {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .social-link {
+    color: var(--text-primary);
+    transition: var(--transition-smooth);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+  }
+
+  .social-link:hover {
+    color: var(--color-gold);
+    background-color: rgba(155, 124, 86, 0.05);
+  }
+
+  @media (max-width: 768px) {
+    .header-social {
+      display: none;
+    }
+  }
+
+  .navbar-bottom {
+    display: flex;
+    justify-content: center;
+    margin-top: 15px;
+    margin-bottom: 5px;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 32px;
+  }
+
+  .nav-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 15px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: var(--transition-smooth);
+    padding-bottom: 4px;
+    border-bottom: 2px solid transparent;
+  }
+
+  .nav-link:hover, .nav-link.active {
+    color: var(--color-gold);
+    border-bottom-color: var(--color-gold);
+  }
+
+  /* Sidebar Navigation Drawer */
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .sidebar-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sidebar-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 300px;
+    height: 100vh;
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    border-right: 1px solid var(--border-color);
+    box-shadow: 4px 0 30px rgba(0, 0, 0, 0.05);
+    z-index: 1001;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    padding: 40px 30px;
+  }
+
+  .sidebar-drawer.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: var(--transition-smooth);
+  }
+
+  .sidebar-close:hover {
+    color: var(--color-gold);
+  }
+
+  .sidebar-logo {
+    margin-top: 20px;
+    margin-bottom: 40px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .sidebar-logo .logo-image {
+    max-height: none;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .sidebar-links {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .sidebar-link {
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: var(--transition-smooth);
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .sidebar-link:hover, .sidebar-link.active {
+    color: var(--color-gold);
+    border-bottom-color: var(--color-gold);
+  }
+
+  .sidebar-socials {
+    margin-top: auto;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+  }
+
+  /* Main content spacing */
+  .main-content {
+    padding: 80px 0 100px;
+    min-height: calc(100vh - 280px);
+  }
+
+  /* Hero Section */
+  .hero-section {
+    padding: 0 0 60px;
+  }
+
+  .subtitle {
+    color: var(--color-gold);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 16px;
+  }
+
+  .hero-title {
+    font-size: 48px;
+    font-weight: 400;
+    margin-top: 10px;
+    margin-bottom: 24px;
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--color-gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hero-divider {
+    width: 60px;
+    height: 2px;
+    background-color: var(--color-gold);
+    margin: 0 auto 24px auto;
+  }
+
+  .hero-description {
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto;
+    font-size: 18px;
+    font-weight: 300;
+    line-height: 1.8;
+  }
+
+  /* Interactive Maps styling */
+  .map-section {
+    padding: 60px 0;
+    margin-bottom: 20px;
+  }
+
+  .map-dashboard-header {
+    margin-bottom: 40px;
+  }
+
+  .map-dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .map-dashboard-grid.single-map-layout {
+    width: 100%;
+  }
+
+  .map-card {
+    background-color: var(--bg-surface);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+    transition: var(--transition-smooth);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .map-card:hover {
+    box-shadow: 0 15px 40px rgba(155, 124, 86, 0.08);
+    border-color: rgba(197, 168, 128, 0.4);
+  }
+
+  .map-card-title {
+    font-size: 22px;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+  }
+
+  .map-card-title .badge {
+    background-color: rgba(155, 124, 86, 0.1);
+    color: var(--color-gold);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .svg-map-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 950px;
+    margin: 20px auto 0 auto;
+    overflow: hidden;
+  }
+
+  .svg-map {
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: hidden;
+  }
+
+  .map-outline {
+    fill: rgba(155, 124, 86, 0.04);
+    stroke: rgba(155, 124, 86, 0.35);
+    stroke-width: 1.0px;
+    transition: var(--transition-smooth);
+  }
+
+  /* Single-country groups (Spain, Germany, Austria, Chile):
+     Show a clean outer country border silhouette with no internal borders */
+  .map-country-fill {
+    fill: rgba(155, 124, 86, 0.05);
+    stroke: rgba(155, 124, 86, 0.65);
+    stroke-width: 1.5px;
+  }
+  .map-country-group {
+    cursor: pointer;
+  }
+
+  /* France & Italy: keep internal region lines thin */
+  .map-region-line {
+    fill: rgba(155, 124, 86, 0.03);
+    stroke: rgba(155, 124, 86, 0.25);
+    stroke-width: 0.8px;
+  }
+
+  /* Outer country border overlay for France & Italy */
+  .map-country-border {
+    fill: none;
+    stroke: rgba(155, 124, 86, 0.65);
+    stroke-width: 1.5px;
+    pointer-events: none;
+  }
+
+  /* Interactive SVG Paths */
+  .map-region-path, .map-country-group .map-outline {
+    cursor: pointer;
+    transition: var(--transition-smooth);
+  }
+  
+  /* SVG Region / Country Hover state */
+  .map-region-path:hover, 
+  .map-region-path.hover {
+    fill: rgba(128, 0, 32, 0.08);
+    stroke: var(--color-burgundy);
+    stroke-width: 1.4px;
+    filter: drop-shadow(0 2px 4px rgba(128, 0, 32, 0.1));
+  }
+
+  .map-country-group:hover .map-country-fill,
+  .map-country-group.hover .map-country-fill {
+    fill: rgba(128, 0, 32, 0.08);
+    stroke: var(--color-burgundy);
+    stroke-width: 1.8px;
+    filter: drop-shadow(0 2px 4px rgba(128, 0, 32, 0.1));
+  }
+
+  .map-country-group:hover .map-country-border,
+  .map-country-group.hover .map-country-border {
+    stroke: var(--color-burgundy);
+    stroke-width: 2.0px;
+  }
+  
+  /* SVG Region / Country Active state */
+  .map-region-path.active {
+    fill: rgba(128, 0, 32, 0.14);
+    stroke: var(--color-burgundy);
+    stroke-width: 1.8px;
+    filter: drop-shadow(0 4px 8px rgba(128, 0, 32, 0.2));
+  }
+  .map-country-group.active .map-country-fill {
+    fill: rgba(128, 0, 32, 0.14);
+    stroke: var(--color-burgundy);
+    stroke-width: 2.2px;
+    filter: drop-shadow(0 4px 8px rgba(128, 0, 32, 0.2));
+  }
+  .map-country-group.active .map-country-border {
+    stroke: var(--color-burgundy);
+    stroke-width: 2.4px;
+  }
+
+  /* Hotspots CSS Overlay */
+  .hotspot {
+    position: absolute;
+    cursor: pointer;
+    z-index: 10;
+    transform: translate(-50%, -50%);
+    transition: var(--transition-smooth);
+  }
+
+  .hotspot-label-card {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: var(--transition-smooth);
+    backdrop-filter: blur(4px);
+    display: inline-block;
+  }
+
+  .hotspot:hover .hotspot-label-card,
+  .hotspot.hover .hotspot-label-card,
+  .hotspot.active .hotspot-label-card {
+    background: var(--color-burgundy);
+    color: #ffffff;
+    border-color: var(--color-burgundy);
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(128, 0, 32, 0.25);
+    transform: scale(1.05);
+  }
+
+  .hotspot.inactive {
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+
+  .hotspot.inactive .hotspot-label-card {
+    background: rgba(30, 30, 30, 0.4);
+    color: var(--text-secondary);
+    border-color: rgba(155, 124, 86, 0.15);
+    opacity: 0.55;
+    box-shadow: none;
+    backdrop-filter: blur(2px);
+  }
+
+  /* Mobile vs Desktop View Toggle */
+  .desktop-map-view {
+    display: block;
+  }
+
+  .mobile-text-filters {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .desktop-map-view {
+      display: none;
+    }
+
+    .mobile-text-filters {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      margin-top: 15px;
+    }
+
+    .mobile-filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .group-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--color-gold);
+      font-weight: 600;
+      font-family: 'Outfit', sans-serif;
+      border-left: 2px solid var(--color-gold);
+      padding-left: 8px;
+    }
+
+    .mobile-filter-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .mobile-filter-pill {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+    }
+
+    .mobile-filter-pill:hover,
+    .mobile-filter-pill.active {
+      background-color: var(--color-burgundy);
+      color: #ffffff;
+      border-color: var(--color-burgundy);
+      box-shadow: 0 4px 12px rgba(128, 0, 32, 0.2);
+    }
+  }
+
+  .country-btn.active .country-name {
+    color: var(--color-burgundy);
+  }
+
+  .country-count {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* Active Filter Indicator Bar */
+  .active-filter-bar {
+    display: none; /* Controlled by JS */
+    justify-content: space-between;
+    align-items: center;
+    background-color: rgba(155, 124, 86, 0.05);
+    border: 1px dashed var(--color-gold);
+    border-radius: 8px;
+    padding: 15px 25px;
+    margin-bottom: 30px;
+    animation: slideDown 0.3s ease-out;
+  }
+
+  @keyframes slideDown {
+    from {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .filter-indicator {
+    font-size: 15px;
+    color: var(--text-primary);
+  }
+
+  .filter-indicator strong {
+    color: var(--color-burgundy);
+    font-size: 16px;
+    margin: 0 5px;
+  }
+
+  .filter-count-badge {
+    background-color: var(--color-burgundy);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-left: 5px;
+  }
+
+  .clear-filter-btn {
+    background: none;
+    border: none;
+    color: var(--color-gold);
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    transition: var(--transition-smooth);
+  }
+
+  .clear-filter-btn:hover {
+    color: var(--color-burgundy);
+    transform: scale(1.05);
+  }
+
+  /* Wine Grid & Cards */
+  .catalog-section {
+    padding-bottom: 100px;
+  }
+
+  .wine-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 40px;
+    margin-top: 40px;
+  }
+
+  .wine-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: var(--transition-smooth);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  .wine-card:hover {
+    transform: translateY(-8px);
+    border-color: var(--color-gold);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  }
+
+  .wine-image-container {
+    position: relative;
+    height: 300px;
+    background-color: #fcfcfd;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+
+  .wine-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transition: var(--transition-smooth);
+  }
+
+  .wine-card:hover .wine-image {
+    transform: scale(1.05);
+  }
+
+  .wine-image-placeholder {
+    font-size: 64px;
+    opacity: 0.3;
+  }
+
+  .vintage-badge {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background-color: var(--color-burgundy);
+    color: white;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
+  }
+
+  .wine-details {
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+
+  .wine-header {
+    margin-bottom: 16px;
+  }
+
+  .wine-producer {
+    color: var(--color-gold);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 6px;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .wine-name {
+    font-size: 26px;
+    font-weight: 400;
+    color: var(--text-primary);
+    line-height: 1.25;
+  }
+
+  .wine-description {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 20px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+
+  .wine-description.expanded {
+    display: block;
+    overflow: visible;
+    -webkit-line-clamp: none;
+  }
+
+  .read-more-btn {
+    background: none;
+    border: none;
+    color: var(--color-gold);
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    margin-top: -12px;
+    margin-bottom: 20px;
+    display: inline-block;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: var(--transition-smooth);
+    text-align: left;
+    outline: none;
+  }
+
+  .read-more-btn:hover {
+    color: var(--color-burgundy);
+  }
+
+  .wine-description p {
+    margin-bottom: 8px;
+  }
+
+  .wine-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 16px 0;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 20px;
+  }
+
+  .meta-label {
+    display: block;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+  }
+
+  .meta-value {
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .wine-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  .tag-badge {
+    background-color: rgba(197, 168, 128, 0.08);
+    color: var(--color-gold);
+    border: 1px solid rgba(197, 168, 128, 0.2);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .wine-scores {
+    background-color: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: auto;
+  }
+
+  .scores-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+  }
+
+  .scores-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .score-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+
+  .score-critic {
+    color: var(--text-secondary);
+  }
+
+  .score-badge {
+    background-color: var(--color-gold);
+    color: var(--bg-dark);
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  /* Empty state & Alerts */
+  .alert {
+    padding: 16px 20px;
+    border-radius: 8px;
+    font-size: 15px;
+    margin-bottom: 30px;
+  }
+
+  .alert-error {
+    background-color: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #b91c1c;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 80px 40px;
+    background-color: var(--bg-surface);
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    max-width: 600px;
+    margin: 40px auto 0;
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  .empty-state h3 {
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+
+  .empty-state p {
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: var(--transition-smooth);
+    cursor: pointer;
+  }
+
+  .btn-primary {
+    background-color: var(--color-gold);
+    color: var(--bg-dark);
+    border: 1px solid var(--color-gold);
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-gold-hover);
+    border-color: var(--color-gold-hover);
+    transform: translateY(-2px);
+  }
+
+  /* Footer */
+  .footer {
+    border-top: 1px solid var(--border-color);
+    padding: 60px 0;
+    color: var(--text-muted);
+    font-size: 14px;
+    background-color: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(8px);
+  }
+
+  .footer-tagline {
+    font-family: 'Dancing Script', cursive;
+    font-size: 32px;
+    color: var(--color-gold);
+    margin-bottom: 12px;
+    font-weight: 700;
+  }
+</style>

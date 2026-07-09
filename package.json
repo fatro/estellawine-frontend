@@ -12,6 +12,12 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@directus/sdk": "^23.0.0",
+    "@svg-maps/austria": "^2.0.0",
+    "@svg-maps/france.regions": "^2.0.0",
+    "@svg-maps/germany": "^2.0.0",
+    "@svg-maps/italy": "^2.0.0",
+    "@svg-maps/spain": "^2.0.0",
     "astro": "^7.0.6"
   }
 }

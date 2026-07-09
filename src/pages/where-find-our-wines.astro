@@ -1,0 +1,1199 @@
+---
+import { createDirectus, rest, readItems } from '@directus/sdk';
+
+// Initialize Directus SDK client
+const client = createDirectus('http://168.144.130.147:8055').with(rest());
+
+let locations = [];
+let error = null;
+
+try {
+  locations = await client.request(
+    readItems('estella_locations', {
+      limit: -1,
+      sort: ['name']
+    })
+  );
+} catch (e) {
+  console.error('Error fetching locations from Directus:', e);
+  error = e.message;
+}
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Where to Find Our Wines — Estella Wine</title>
+    
+    <!-- Premium Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <!-- Sidebar Navigation Drawer -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <div class="sidebar-drawer" id="sidebarDrawer">
+      <button class="sidebar-close" id="sidebarCloseBtn" aria-label="Close menu">&times;</button>
+      <div class="sidebar-logo">
+        <img src="/estellawine_logo.png" alt="Estella Wine Logo" class="logo-image" />
+      </div>
+      <nav class="sidebar-links">
+        <a href="/" class="sidebar-link">Our Wines</a>
+        <a href="/where-find-our-wines" class="sidebar-link active">Where to Find Us</a>
+        <a href="/about" class="sidebar-link">Our Story</a>
+        <a href="/contact-us" class="sidebar-link">Contact Us</a>
+      </nav>
+      <div class="sidebar-socials">
+        <a href="https://www.instagram.com/estellawine" target="_blank" rel="noopener noreferrer" class="social-link sidebar-social" aria-label="Instagram">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+          </svg>
+        </a>
+        <a href="https://www.facebook.com/estellawine" target="_blank" rel="noopener noreferrer" class="social-link sidebar-social" aria-label="Facebook">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <header class="navbar">
+      <div class="container navbar-top">
+        <!-- Hamburger Menu Icon on Left -->
+        <button class="hamburger-btn" id="hamburgerMenuBtn" aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+
+        <!-- Centered Logo -->
+        <a href="/" class="brand-logo">
+          <img src="/estellawine_logo.png" alt="Estella Wine Logo" class="logo-image" />
+        </a>
+
+        <!-- Right Side Social Icons (Desktop) / Spacer (Mobile) -->
+        <div class="navbar-right">
+          <a href="https://www.instagram.com/estellawine" target="_blank" rel="noopener noreferrer" class="social-link header-social" aria-label="Instagram">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+            </svg>
+          </a>
+          <a href="https://www.facebook.com/estellawine" target="_blank" rel="noopener noreferrer" class="social-link header-social" aria-label="Facebook">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <div class="navbar-bottom">
+      <nav class="nav-links">
+        <a href="/" class="nav-link">Our Wines</a>
+        <a href="/where-find-our-wines" class="nav-link active">Where to Find Us</a>
+        <a href="/about" class="nav-link">Our Story</a>
+        <a href="/contact-us" class="nav-link">Contact Us</a>
+      </nav>
+    </div>
+
+    <main class="main-content">
+      <div class="container">
+        {error && (
+          <div class="alert alert-error">
+            <strong>Connection Error:</strong> Could not retrieve the locations list ({error}). Please ensure the Directus server is online.
+          </div>
+        )}
+
+        {!error && locations.length === 0 && (
+          <div class="empty-state">
+            <div class="empty-icon">📍</div>
+            <h3>No Locations Found</h3>
+            <p>Our locations directory is currently empty. Please check back later.</p>
+          </div>
+        )}
+
+        {!error && locations.length > 0 && (
+          <div class="locator-wrapper">
+            <!-- Hero Heading Section -->
+            <div class="locator-hero text-center">
+              <span class="subtitle">Partners & Retailers</span>
+              <h1 class="locator-title">Where to Find Our Wines</h1>
+              <div class="locator-divider"></div>
+              <p class="locator-description">
+                Discover Estella Wine selections at prestigious dining establishments, hotels, resorts, and premier retail partners across Thailand.
+              </p>
+            </div>
+
+            <!-- Search & Filter Controls -->
+            <div class="filter-controls-card">
+              <!-- Search bar -->
+              <div class="search-box-container">
+                <svg class="search-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input 
+                  type="text" 
+                  id="searchInput" 
+                  placeholder="Search by restaurant name, address, or keyword..." 
+                  aria-label="Search locations" 
+                />
+                <button id="clearSearchBtn" class="clear-btn" aria-label="Clear search">&times;</button>
+              </div>
+
+              <!-- City Tabs -->
+              <div class="tabs-container">
+                <span class="filter-label">Regions</span>
+                <div class="tabs-scroll">
+                  <div class="filter-tabs">
+                    <button class="tab-btn active" data-city-filter="all">All Locations</button>
+                    <button class="tab-btn" data-city-filter="bangkok">Bangkok</button>
+                    <button class="tab-btn" data-city-filter="chiang mai">Chiang Mai</button>
+                    <button class="tab-btn" data-city-filter="phuket">Phuket</button>
+                    <button class="tab-btn" data-city-filter="other">Other Regions</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Category Pills -->
+              <div class="categories-container">
+                <span class="filter-label">Venue Type</span>
+                <div class="category-pills">
+                  <button class="pill-btn active" data-cat-filter="all">All Types</button>
+                  <button class="pill-btn" data-cat-filter="hotel">Hotels & Resorts</button>
+                  <button class="pill-btn" data-cat-filter="restaurant">Restaurants</button>
+                  <button class="pill-btn" data-cat-filter="bar">Wine Bars & Cafes</button>
+                  <button class="pill-btn" data-cat-filter="retail">Retail & Other</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Locations Grid -->
+            <div class="locations-grid" id="locationsGrid">
+              {locations.map((loc) => {
+                const searchContent = `${loc.name} ${loc.city} ${loc.address}`.toLowerCase();
+                const isOtherCity = !['bangkok', 'chiang mai', 'phuket'].includes(loc.city.toLowerCase());
+                const mappedCityClass = isOtherCity ? 'other' : loc.city.toLowerCase();
+
+                return (
+                  <div 
+                    class="location-card visible"
+                    data-city={loc.city.toLowerCase()}
+                    data-city-group={mappedCityClass}
+                    data-category={loc.category || 'retail'}
+                    data-search={searchContent}
+                  >
+                    <div class="card-header">
+                      <span class={`category-badge ${loc.category || 'retail'}`}>
+                        {loc.category === 'hotel' ? 'Hotel & Resort' :
+                         loc.category === 'restaurant' ? 'Restaurant' :
+                         loc.category === 'bar' ? 'Wine Bar & Cafe' : 'Retail & Other'}
+                      </span>
+                      <span class="city-badge">{loc.city}</span>
+                    </div>
+
+                    <h3 class="location-name">{loc.name}</h3>
+                    
+                    <div class="location-details">
+                      <p class="detail-item address">
+                        <svg class="detail-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                          <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        <span class="detail-text">{loc.address}</span>
+                      </p>
+                      
+                      {loc.tel && (
+                        <p class="detail-item phone">
+                          <svg class="detail-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                          </svg>
+                          <a href={`tel:${loc.tel.replace(/[^+\d]/g, '')}`} class="tel-link">{loc.tel}</a>
+                        </p>
+                      )}
+                    </div>
+
+                    {loc.google_map_url && (
+                      <a href={loc.google_map_url} target="_blank" rel="noopener noreferrer" class="directions-btn">
+                        <span>Get Directions</span>
+                        <svg class="arrow-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                          <line x1="7" y1="17" x2="17" y2="7"></line>
+                          <polyline points="7 7 17 7 17 17"></polyline>
+                        </svg>
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <!-- Empty Search State -->
+            <div id="noResultsState" class="no-results-card hidden">
+              <div class="no-results-icon">🔍</div>
+              <h3>No Locations Found</h3>
+              <p>We couldn't find any partners matching your search query or filters. Please try checking your spelling or adjusting your options.</p>
+              <button id="resetFiltersBtn" class="btn btn-primary">Reset Filters</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="container text-center">
+        <p class="footer-tagline">Fine Wine Company</p>
+        <p>&copy; {new Date().getFullYear()} Estella Wine. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <!-- Client-side Javascript logic for Hamburger menu and real-time Search/Filter -->
+    <script>
+      // Sidebar drawer interaction
+      const hamburgerBtn = document.getElementById('hamburgerMenuBtn');
+      const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+      const sidebarDrawer = document.getElementById('sidebarDrawer');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
+      const navbar = document.querySelector('.navbar');
+
+      function openSidebar() {
+        if (sidebarDrawer && sidebarOverlay) {
+          sidebarDrawer.classList.add('open');
+          sidebarOverlay.classList.add('visible');
+          document.body.style.overflow = 'hidden';
+        }
+      }
+
+      function closeSidebar() {
+        if (sidebarDrawer && sidebarOverlay) {
+          sidebarDrawer.classList.remove('open');
+          sidebarOverlay.classList.remove('visible');
+          document.body.style.overflow = '';
+        }
+      }
+
+      if (hamburgerBtn && sidebarCloseBtn && sidebarOverlay) {
+        hamburgerBtn.addEventListener('click', openSidebar);
+        sidebarCloseBtn.addEventListener('click', closeSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+      }
+
+      // Navbar scroll effect
+      function handleScroll() {
+        if (navbar) {
+          if (window.scrollY > 20) {
+            navbar.classList.add('scrolled');
+          } else {
+            navbar.classList.remove('scrolled');
+          }
+        }
+      }
+
+      window.addEventListener('scroll', handleScroll);
+      handleScroll(); // Trigger once on load
+
+      // Interactive Search and Filtering Logic
+      const searchInput = document.getElementById('searchInput') as HTMLInputElement | null;
+      const clearSearchBtn = document.getElementById('clearSearchBtn');
+      const tabButtons = document.querySelectorAll('.tab-btn');
+      const pillButtons = document.querySelectorAll('.pill-btn');
+      const locationCards = document.querySelectorAll('.location-card');
+      const noResultsState = document.getElementById('noResultsState');
+      const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+
+      let currentSearchQuery = "";
+      let activeCityFilter = "all";
+      let activeCategoryFilter = "all";
+
+      function updateFilters() {
+        let visibleCount = 0;
+
+        locationCards.forEach(card => {
+          const cardHtml = card as HTMLElement;
+          const searchContent = cardHtml.getAttribute('data-search') || "";
+          const cityGroup = cardHtml.getAttribute('data-city-group') || "";
+          const category = cardHtml.getAttribute('data-category') || "";
+
+          const matchesSearch = currentSearchQuery === "" || searchContent.includes(currentSearchQuery);
+          const matchesCity = activeCityFilter === "all" || cityGroup === activeCityFilter;
+          const matchesCategory = activeCategoryFilter === "all" || category === activeCategoryFilter;
+
+          if (matchesSearch && matchesCity && matchesCategory) {
+            cardHtml.style.display = "flex";
+            // Stagger animation slightly
+            setTimeout(() => {
+              cardHtml.classList.add('visible');
+            }, 10);
+            visibleCount++;
+          } else {
+            cardHtml.style.display = "none";
+            cardHtml.classList.remove('visible');
+          }
+        });
+
+        // Show/hide empty state
+        if (noResultsState) {
+          if (visibleCount === 0) {
+            noResultsState.classList.remove('hidden');
+          } else {
+            noResultsState.classList.add('hidden');
+          }
+        }
+      }
+
+      // Search field listeners
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          const target = e.target as HTMLInputElement;
+          currentSearchQuery = target.value.trim().toLowerCase();
+          
+          if (clearSearchBtn) {
+            if (currentSearchQuery.length > 0) {
+              clearSearchBtn.style.display = "block";
+            } else {
+              clearSearchBtn.style.display = "none";
+            }
+          }
+          updateFilters();
+        });
+      }
+
+      // Clear search button listener
+      if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', () => {
+          if (searchInput) {
+            searchInput.value = "";
+            currentSearchQuery = "";
+            clearSearchBtn.style.display = "none";
+            updateFilters();
+          }
+        });
+      }
+
+      // City Tabs listener
+      tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          activeCityFilter = btn.getAttribute('data-city-filter') || "all";
+          updateFilters();
+        });
+      });
+
+      // Category Pills listener
+      pillButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          pillButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          activeCategoryFilter = btn.getAttribute('data-cat-filter') || "all";
+          updateFilters();
+        });
+      });
+
+      // Reset button listener
+      if (resetFiltersBtn) {
+        resetFiltersBtn.addEventListener('click', () => {
+          if (searchInput) searchInput.value = "";
+          currentSearchQuery = "";
+          if (clearSearchBtn) clearSearchBtn.style.display = "none";
+
+          tabButtons.forEach(b => b.classList.remove('active'));
+          const allTab = document.querySelector('[data-city-filter="all"]');
+          if (allTab) allTab.classList.add('active');
+          activeCityFilter = "all";
+
+          pillButtons.forEach(b => b.classList.remove('active'));
+          const allPill = document.querySelector('[data-cat-filter="all"]');
+          if (allPill) allPill.classList.add('active');
+          activeCategoryFilter = "all";
+
+          updateFilters();
+        });
+      }
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  /* Premium Day Theme variables */
+  :root {
+    --bg-dark: #f8f8fa;
+    --bg-surface: rgba(255, 255, 255, 0.9);
+    --bg-surface-hover: rgba(255, 255, 255, 1);
+    --border-color: rgba(197, 168, 128, 0.25);
+    
+    --text-primary: #1c1b1f;
+    --text-secondary: #4e4b52;
+    --text-muted: #7a7680;
+    
+    --color-gold: #9b7c56;
+    --color-gold-hover: #b8966c;
+    --color-burgundy: #800020;
+    
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Reset */
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-image: url('/carrara_marble.jpg');
+    background-repeat: repeat;
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: 'Outfit', sans-serif;
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, .brand-logo {
+    font-family: 'Playfair Display', serif;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .text-center {
+    text-align: center;
+  }
+
+  /* Navbar styling */
+  .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 20px 0 10px 0;
+    background-color: transparent;
+    transition: background-color 0.3s ease, padding 0.3s ease, border-bottom 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .navbar.scrolled {
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    padding: 10px 0;
+  }
+
+  .navbar-top {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+  }
+
+  .brand-logo {
+    color: var(--text-primary);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+  }
+
+  .logo-image {
+    height: 32px;
+    width: auto;
+    display: block;
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .navbar.scrolled .logo-image {
+    height: 26px;
+  }
+
+  @media (max-width: 768px) {
+    .logo-image {
+      height: 24px;
+    }
+    .navbar.scrolled .logo-image {
+      height: 22px;
+    }
+  }
+
+  .hamburger-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-primary);
+    padding: 10px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-smooth);
+  }
+
+  .hamburger-btn:hover {
+    color: var(--color-gold);
+  }
+
+  .navbar-right {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .social-link {
+    color: var(--text-primary);
+    transition: var(--transition-smooth);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+  }
+
+  .social-link:hover {
+    color: var(--color-gold);
+    background-color: rgba(155, 124, 86, 0.05);
+  }
+
+  @media (max-width: 768px) {
+    .header-social {
+      display: none;
+    }
+  }
+
+  .navbar-bottom {
+    display: flex;
+    justify-content: center;
+    margin-top: 15px;
+    margin-bottom: 5px;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 32px;
+  }
+
+  .nav-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 15px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: var(--transition-smooth);
+    padding-bottom: 4px;
+    border-bottom: 2px solid transparent;
+  }
+
+  .nav-link:hover, .nav-link.active {
+    color: var(--color-gold);
+    border-bottom-color: var(--color-gold);
+  }
+
+  /* Sidebar Navigation Drawer */
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .sidebar-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sidebar-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 300px;
+    height: 100vh;
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    border-right: 1px solid var(--border-color);
+    box-shadow: 4px 0 30px rgba(0, 0, 0, 0.05);
+    z-index: 1001;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    padding: 40px 30px;
+  }
+
+  .sidebar-drawer.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: var(--transition-smooth);
+  }
+
+  .sidebar-close:hover {
+    color: var(--color-gold);
+  }
+
+  .sidebar-logo {
+    margin-top: 20px;
+    margin-bottom: 40px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .sidebar-logo .logo-image {
+    max-height: none;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .sidebar-links {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .sidebar-link {
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: var(--transition-smooth);
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .sidebar-link:hover, .sidebar-link.active {
+    color: var(--color-gold);
+    border-bottom-color: var(--color-gold);
+  }
+
+  .sidebar-socials {
+    margin-top: auto;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+
+  .sidebar-social {
+    border: 1px solid var(--border-color);
+  }
+
+  /* Main content spacing */
+  .main-content {
+    padding: 80px 0 100px;
+    min-height: calc(100vh - 280px);
+  }
+
+  /* Alerts */
+  .alert {
+    padding: 16px 20px;
+    border-radius: 8px;
+    font-size: 15px;
+    margin-bottom: 30px;
+  }
+
+  .alert-error {
+    background-color: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #b91c1c;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 80px 40px;
+    background-color: var(--bg-surface);
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    max-width: 600px;
+    margin: 40px auto 0;
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  .empty-state h3 {
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+
+  .empty-state p {
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: var(--transition-smooth);
+    cursor: pointer;
+  }
+
+  .btn-primary {
+    background-color: var(--color-gold);
+    color: white;
+    border: 1px solid var(--color-gold);
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-gold-hover);
+    border-color: var(--color-gold-hover);
+    transform: translateY(-2px);
+  }
+
+  /* Footer */
+  .footer {
+    border-top: 1px solid var(--border-color);
+    padding: 60px 0;
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-top: 80px;
+    background-color: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(8px);
+  }
+
+  .footer-tagline {
+    font-family: 'Dancing Script', cursive;
+    font-size: 32px;
+    color: var(--color-gold);
+    margin-bottom: 12px;
+    font-weight: 700;
+  }
+</style>
+
+<style>
+  /* Page specific styles */
+  .locator-wrapper {
+    margin-top: 20px;
+    margin-bottom: 80px;
+  }
+
+  .locator-hero {
+    max-width: 800px;
+    margin: 0 auto 60px auto;
+  }
+
+  .subtitle {
+    color: var(--color-gold);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 16px;
+  }
+
+  .locator-title {
+    font-size: 34px;
+    font-weight: 300;
+    line-height: 1.45;
+    color: var(--text-primary);
+    margin-top: 10px;
+    margin-bottom: 24px;
+  }
+
+  .locator-divider {
+    width: 60px;
+    height: 2px;
+    background-color: var(--color-gold);
+    margin: 0 auto 24px auto;
+  }
+
+  .locator-description {
+    font-size: 16px;
+    color: var(--text-secondary);
+    line-height: 1.8;
+  }
+
+  /* Filter card */
+  .filter-controls-card {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 30px;
+    margin-bottom: 40px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+  }
+
+  /* Search input container */
+  .search-box-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: 24px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  .search-box-container input {
+    width: 100%;
+    padding: 16px 50px 16px 55px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 16px;
+    color: var(--text-primary);
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+    transition: var(--transition-smooth);
+  }
+
+  .search-box-container input:focus {
+    outline: none;
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 3px rgba(155, 124, 86, 0.15);
+  }
+
+  .clear-btn {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: none;
+    transition: color 0.2s;
+  }
+
+  .clear-btn:hover {
+    color: var(--text-primary);
+  }
+
+  /* Filters styling */
+  .filter-label {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .tabs-container {
+    margin-bottom: 20px;
+  }
+
+  .tabs-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .tabs-scroll::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+
+  .filter-tabs {
+    display: flex;
+    gap: 8px;
+    min-width: max-content;
+    padding-bottom: 4px;
+  }
+
+  .tab-btn {
+    padding: 8px 18px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+  }
+
+  .tab-btn:hover {
+    border-color: var(--color-gold);
+    color: var(--color-gold);
+  }
+
+  .tab-btn.active {
+    background-color: var(--color-gold);
+    border-color: var(--color-gold);
+    color: white;
+    box-shadow: 0 4px 12px rgba(155, 124, 86, 0.2);
+  }
+
+  /* Categories pills */
+  .category-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pill-btn {
+    padding: 8px 16px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 30px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+  }
+
+  .pill-btn:hover {
+    background-color: white;
+    border-color: var(--color-gold);
+    color: var(--color-gold);
+  }
+
+  .pill-btn.active {
+    background-color: var(--text-primary);
+    border-color: var(--text-primary);
+    color: white;
+  }
+
+  /* Locations Grid */
+  .locations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 24px;
+    margin-bottom: 60px;
+  }
+
+  /* Location Card */
+  .location-card {
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01);
+    transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.4s ease, opacity 0.4s ease;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .location-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .location-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 30px rgba(155, 124, 86, 0.08);
+    border-color: var(--color-gold);
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .category-badge {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  /* Category colors */
+  .category-badge.hotel {
+    background-color: rgba(155, 124, 86, 0.08);
+    color: var(--color-gold);
+    border: 1px solid rgba(155, 124, 86, 0.2);
+  }
+
+  .category-badge.restaurant {
+    background-color: rgba(128, 0, 32, 0.06);
+    color: var(--color-burgundy);
+    border: 1px solid rgba(128, 0, 32, 0.15);
+  }
+
+  .category-badge.bar {
+    background-color: rgba(43, 90, 137, 0.06);
+    color: #2b5a89;
+    border: 1px solid rgba(43, 90, 137, 0.15);
+  }
+
+  .category-badge.retail {
+    background-color: rgba(46, 117, 89, 0.06);
+    color: #2e7559;
+    border: 1px solid rgba(46, 117, 89, 0.15);
+  }
+
+  .city-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background-color: var(--bg-dark);
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.03);
+  }
+
+  .location-name {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 14px;
+    line-height: 1.3;
+  }
+
+  .location-details {
+    flex-grow: 1;
+    margin-bottom: 20px;
+  }
+
+  .detail-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .detail-icon {
+    color: var(--color-gold);
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+
+  .tel-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .tel-link:hover {
+    color: var(--color-gold);
+    text-decoration: underline;
+  }
+
+  .directions-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: var(--transition-smooth);
+    cursor: pointer;
+  }
+
+  .directions-btn:hover {
+    background-color: var(--color-gold);
+    border-color: var(--color-gold);
+    color: white;
+  }
+
+  .arrow-icon {
+    transition: transform 0.3s ease;
+  }
+
+  .directions-btn:hover .arrow-icon {
+    transform: translate(2px, -2px);
+  }
+
+  /* No Results empty card */
+  .no-results-card {
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 60px 40px;
+    text-align: center;
+    max-width: 600px;
+    margin: 40px auto 60px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01);
+  }
+
+  .no-results-card.hidden {
+    display: none;
+  }
+
+  .no-results-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+  }
+
+  .no-results-card h3 {
+    font-size: 22px;
+    margin-bottom: 12px;
+  }
+
+  .no-results-card p {
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+    font-size: 15px;
+  }
+
+  /* Responsive styling */
+  @media (max-width: 768px) {
+    .locator-title {
+      font-size: 32px;
+    }
+    
+    .filter-controls-card {
+      padding: 20px;
+    }
+
+    .locations-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
