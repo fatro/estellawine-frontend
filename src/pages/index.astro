@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 
 // Initialize Directus SDK client
-const client = createDirectus('http://168.144.130.147:8055').with(rest());
+const client = createDirectus('https://cms.estellawine.com').with(rest());
 
 // Load combined Europe SVG map
 const europeSvgPath = path.join(process.cwd(), 'public/combined-europe.svg');
@@ -427,7 +427,7 @@ function parseGrapeVarieties(varieties) {
               <div class="empty-icon">🍷</div>
               <h3>No Wines Found</h3>
               <p>The Estella Wine collection is currently empty.</p>
-              <a href="http://168.144.130.147:8055/admin" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+              <a href="https://cms.estellawine.com/admin" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
                 Add Wines to CMS
               </a>
             </div>
@@ -442,7 +442,7 @@ function parseGrapeVarieties(varieties) {
                     <div class="wine-image-container">
                     {wine.image ? (
                       <img 
-                        src={`http://168.144.130.147:8055/assets/${wine.image}`} 
+                        src={`https://cms.estellawine.com/assets/${wine.image}`} 
                         alt={wine.name} 
                         class="wine-image" 
                         loading="lazy"
