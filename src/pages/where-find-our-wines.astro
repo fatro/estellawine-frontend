@@ -574,9 +574,6 @@ try {
     .header-social {
       display: none;
     }
-    .navbar-bottom {
-      display: none;
-    }
   }
 
   .navbar-bottom {
@@ -584,6 +581,12 @@ try {
     justify-content: center;
     margin-top: 15px;
     margin-bottom: 5px;
+  }
+
+  @media (max-width: 768px) {
+    .navbar-bottom {
+      display: none !important;
+    }
   }
 
   .nav-links {
