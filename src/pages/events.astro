@@ -5,11 +5,12 @@ import { createDirectus, rest, readItems } from '@directus/sdk';
 const client = createDirectus('https://cms.estellawine.com').with(rest());
 
 let events = [];
+let error = null;
+
 try {
   events = await client.request(
     readItems('estella_events', {
       sort: ['-event_date'],
-      limit: 3,
       filter: {
         status: {
           _eq: 'published'
@@ -18,7 +19,8 @@ try {
     })
   );
 } catch (e) {
-  console.error('Error fetching events for index.astro:', e);
+  console.error('Error fetching events from Directus:', e);
+  error = e.message;
 }
 
 function formatDate(dateStr) {
@@ -30,6 +32,17 @@ function formatDate(dateStr) {
     day: 'numeric'
   });
 }
+
+function stripHtml(html) {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, '');
+}
+
+function getExcerpt(html, maxLength = 160) {
+  const text = stripHtml(html);
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength).trim() + '...';
+}
 ---
 
 <html lang="en">
@@ -38,7 +51,7 @@ function formatDate(dateStr) {
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="generator" content={Astro.generator} />
-    <title>Our Story — Estella Wine</title>
+    <title>Events — Estella Wine</title>
     
     <!-- Premium Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -54,10 +67,10 @@ function formatDate(dateStr) {
         <img src="/estellawine_logo.png" alt="Estella Wine Logo" class="logo-image" />
       </div>
       <nav class="sidebar-links">
-        <a href="/" class="sidebar-link active">Our Story</a>
+        <a href="/" class="sidebar-link">Our Story</a>
         <a href="/our-wines" class="sidebar-link">Our Wines</a>
         <a href="/where-find-our-wines" class="sidebar-link">Where to Find Us</a>
-        <a href="/events" class="sidebar-link">Events</a>
+        <a href="/events" class="sidebar-link active">Events</a>
         <a href="/contact-us" class="sidebar-link">Contact Us</a>
       </nav>
       <div class="sidebar-socials">
@@ -78,7 +91,6 @@ function formatDate(dateStr) {
 
     <header class="navbar">
       <div class="container navbar-top">
-        <!-- Hamburger Menu Icon on Left -->
         <button class="hamburger-btn" id="hamburgerMenuBtn" aria-label="Open navigation menu">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -87,12 +99,10 @@ function formatDate(dateStr) {
           </svg>
         </button>
 
-        <!-- Centered Logo -->
         <a href="/" class="brand-logo">
           <img src="/estellawine_logo.png" alt="Estella Wine Logo" class="logo-image" />
         </a>
 
-        <!-- Right Side Social Icons (Desktop) / Spacer (Mobile) -->
         <div class="navbar-right">
           <a href="https://www.instagram.com/estellawine" target="_blank" rel="noopener noreferrer" class="social-link header-social" aria-label="Instagram">
             <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -112,105 +122,81 @@ function formatDate(dateStr) {
 
     <div class="navbar-bottom">
       <nav class="nav-links">
-        <a href="/" class="nav-link active">Our Story</a>
+        <a href="/" class="nav-link">Our Story</a>
         <a href="/our-wines" class="nav-link">Our Wines</a>
         <a href="/where-find-our-wines" class="nav-link">Where to Find Us</a>
-        <a href="/events" class="nav-link">Events</a>
+        <a href="/events" class="nav-link active">Events</a>
         <a href="/contact-us" class="nav-link">Contact Us</a>
       </nav>
     </div>
 
     <main class="main-content">
       <div class="container">
-        <div class="story-wrapper">
-          <!-- Hero Cellar Banner -->
-          <div class="story-hero-banner">
-            <img src="/estella_story_hero.jpg" alt="Estella Wine Cellar" class="story-hero-image" />
-            <div class="story-hero-overlay"></div>
-          </div>
-
-          <!-- Intro Section (centered typography) -->
-          <div class="story-intro-container">
-            <span class="subtitle">Heritage & Passion</span>
-            <h1 class="story-title">Our Story</h1>
-            <div class="story-divider"></div>
-            <p class="story-intro-text">
-              Established in August 2014 by a group of experienced wine enthusiasts, Estella Wine has grown to become one of Thailand’s premier fine wine importers and distributors.
-            </p>
-          </div>
-
-          <!-- Three Pillars Grid -->
-          <div class="story-pillars-grid">
-            <div class="pillar-card">
-              <span class="pillar-number">01</span>
-              <h3 class="pillar-title">Boutique Selection</h3>
-              <p class="pillar-text">We select top-quality wines from boutique and finest vineyards, curating only the most exceptional bottles for our catalog.</p>
-            </div>
-            <div class="pillar-card">
-              <span class="pillar-number">02</span>
-              <h3 class="pillar-title">Cold Chain Logistics</h3>
-              <p class="pillar-text">All wines are imported directly from the estates using 100% temperature-controlled containers to guarantee freshness.</p>
-            </div>
-            <div class="pillar-card">
-              <span class="pillar-number">03</span>
-              <h3 class="pillar-title">A Curator's Promise</h3>
-              <p class="pillar-text">We are a passionate team dedicated to delivering an unmatched fine wine discovery experience in Thailand.</p>
-            </div>
-          </div>
-
-          <!-- Call to Action -->
-          <div class="story-cta">
-            <a href="/our-wines" class="btn btn-primary">Explore Our Wine Collection</a>
-          </div>
-
-          <!-- Latest Events Section -->
-          {events && events.length > 0 && (
-            <div class="story-events-section">
-              <div class="text-center section-header">
-                <span class="subtitle">News & Gatherings</span>
-                <h2 class="story-title text-center">Latest Events</h2>
-                <div class="story-divider"></div>
-              </div>
-              
-              <div class="story-events-grid">
-                {events.map((event) => (
-                  <article class="home-event-card">
-                    <a href={`/events/${event.slug}`} class="home-event-img-link">
-                      <div class="home-event-img-wrapper">
-                        {event.image ? (
-                          <img src={`https://cms.estellawine.com/assets/${event.image}`} alt={event.title} class="home-event-img" />
-                        ) : (
-                          <div class="home-event-placeholder"><span>Estella</span></div>
-                        )}
-                      </div>
-                    </a>
-                    <div class="home-event-body">
-                      <h3 class="home-event-card-title">
-                        <a href={`/events/${event.slug}`}>{event.title}</a>
-                      </h3>
-                      <a href={`/events/${event.slug}`} class="home-event-more">Read More &rarr;</a>
-                    </div>
-                  </article>
-                ))}
-              </div>
-              <div class="text-center events-viewall">
-                <a href="/events" class="btn btn-secondary">View All Events</a>
-              </div>
-            </div>
-          )}
-
-          <!-- Founder's Signature Quote Box -->
-          <div class="story-founder-container">
-            <div class="founder-quote-card">
-              <span class="quote-mark">“</span>
-              <p class="quote-text">We hope you will enjoy our fine wine selections and offers!</p>
-              <div class="founder-signature-block">
-                <span class="founder-name">Ronavish Chulajata</span>
-                <span class="founder-role">Founder, Estella Company Limited</span>
-              </div>
-            </div>
-          </div>
+        <div class="events-hero-section text-center">
+          <span class="subtitle">News & Gatherings</span>
+          <h1 class="page-title">Our Events</h1>
+          <div class="title-divider"></div>
+          <p class="intro-text">
+            Discover our latest wine tastings, exclusive dinners, vineyard tours, and updates.
+          </p>
         </div>
+
+        {error && (
+          <div class="error-container">
+            <p>Unable to load events at this time. Please try again later.</p>
+          </div>
+        )}
+
+        {!error && events.length === 0 && (
+          <div class="no-events text-center">
+            <p>No events scheduled at the moment. Please check back soon!</p>
+          </div>
+        )}
+
+        {!error && events.length > 0 && (
+          <div class="events-grid">
+            {events.map((event) => (
+              <article class="event-card">
+                <a href={`/events/${event.slug}`} class="event-card-image-link">
+                  <div class="event-card-image-wrapper">
+                    {event.image ? (
+                      <img 
+                        src={`https://cms.estellawine.com/assets/${event.image}`} 
+                        alt={event.title} 
+                        class="event-card-image"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div class="event-card-placeholder">
+                        <span>Estella Wine</span>
+                      </div>
+                    )}
+                    {event.event_date && (
+                      <div class="event-date-badge">
+                        <span class="date-text">{formatDate(event.event_date)}</span>
+                      </div>
+                    )}
+                  </div>
+                </a>
+                <div class="event-card-content">
+                  <h2 class="event-card-title">
+                    <a href={`/events/${event.slug}`}>{event.title}</a>
+                  </h2>
+                  <p class="event-card-excerpt">
+                    {getExcerpt(event.description)}
+                  </p>
+                  <a href={`/events/${event.slug}`} class="btn-readmore">
+                    Read More 
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                      <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     </main>
 
@@ -261,7 +247,6 @@ function formatDate(dateStr) {
       }
 
       window.addEventListener('scroll', handleScroll);
-      // Run once on load to set initial state
       handleScroll();
     </script>
   </body>
@@ -316,10 +301,6 @@ function formatDate(dateStr) {
     padding: 0 24px;
   }
 
-  .small-container {
-    max-width: 800px;
-  }
-
   .text-center {
     text-align: center;
   }
@@ -341,8 +322,6 @@ function formatDate(dateStr) {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
     padding: 10px 0;
   }
-
-
 
   .navbar-top {
     display: grid;
@@ -519,7 +498,6 @@ function formatDate(dateStr) {
   }
 
   .sidebar-logo .logo-image {
-    max-height: none;
     width: 100%;
     max-width: 100%;
     height: auto;
@@ -534,70 +512,37 @@ function formatDate(dateStr) {
   .sidebar-link {
     color: var(--text-primary);
     text-decoration: none;
-    font-size: 16px;
     font-weight: 500;
+    font-size: 18px;
     letter-spacing: 1px;
     text-transform: uppercase;
     transition: var(--transition-smooth);
-    padding: 10px 0;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding-left: 5px;
+    border-left: 2px solid transparent;
   }
 
   .sidebar-link:hover, .sidebar-link.active {
     color: var(--color-gold);
-    border-bottom-color: var(--color-gold);
+    border-left-color: var(--color-gold);
+    padding-left: 10px;
   }
 
   .sidebar-socials {
     margin-top: auto;
     display: flex;
+    gap: 15px;
     justify-content: center;
-    gap: 16px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border-color);
   }
 
-  /* Main Content Layout */
+  /* Page Content */
   .main-content {
     padding: 80px 0 100px;
     min-height: calc(100vh - 280px);
   }
 
-  /* Story/About Article layout */
-  .story-wrapper {
-    margin-top: 0;
-    margin-bottom: 80px;
-  }
-
-  .story-hero-banner {
-    position: relative;
-    width: 100%;
-    height: 480px;
-    border-radius: 16px;
-    overflow: hidden;
-    margin-bottom: 60px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-  }
-
-  .story-hero-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .story-hero-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(180deg, rgba(26, 19, 13, 0.1) 0%, rgba(26, 19, 13, 0.5) 100%);
-  }
-
-  .story-intro-container {
-    max-width: 800px;
-    margin: 0 auto 60px auto;
-    text-align: center;
+  .events-hero-section {
+    max-width: 700px;
+    margin: 0 auto 50px auto;
   }
 
   .subtitle {
@@ -608,286 +553,44 @@ function formatDate(dateStr) {
     font-weight: 600;
     display: block;
     margin-bottom: 16px;
-    text-align: center;
   }
 
-  .story-title {
-    font-size: 34px;
-    font-weight: 300;
-    line-height: 1.45;
+  .page-title {
+    font-size: 48px;
+    font-weight: 500;
     color: var(--text-primary);
-    margin-top: 10px;
-    margin-bottom: 24px;
-    font-family: 'Playfair Display', serif;
+    letter-spacing: -0.5px;
+    margin-bottom: 15px;
   }
 
-  .story-divider {
+  .title-divider {
     width: 60px;
     height: 2px;
     background-color: var(--color-gold);
-    margin: 0 auto;
+    margin: 0 auto 20px auto;
   }
 
-  .story-intro-text {
+  .intro-text {
     font-size: 18px;
     color: var(--text-secondary);
-    line-height: 1.8;
-    max-width: 700px;
-    margin: 30px auto 0 auto;
-    font-weight: 300;
-  }
-
-  .story-cta {
-    margin-bottom: 80px;
-    text-align: center;
-  }
-
-  /* Pillars Grid */
-  .story-pillars-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 30px;
-    margin-bottom: 80px;
-  }
-
-  .pillar-card {
-    background-color: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 40px 30px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
-    transition: var(--transition-smooth);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .pillar-card:hover {
-    transform: translateY(-5px);
-    border-color: rgba(197, 168, 128, 0.4);
-    box-shadow: 0 15px 40px rgba(155, 124, 86, 0.06);
-  }
-
-  .pillar-number {
-    font-size: 64px;
-    font-weight: 200;
-    color: rgba(155, 124, 86, 0.12);
-    font-family: 'Outfit', sans-serif;
-    position: absolute;
-    top: 15px;
-    right: 25px;
-    line-height: 1;
-  }
-
-  .pillar-title {
-    font-size: 20px;
-    font-weight: 400;
-    color: var(--text-primary);
-    margin-bottom: 16px;
-    font-family: 'Playfair Display', serif;
-    letter-spacing: 0.5px;
-  }
-
-  .pillar-text {
-    font-size: 14px;
-    color: var(--text-secondary);
-    line-height: 1.65;
-    font-weight: 300;
-  }
-
-  /* Founder Message section */
-  .story-founder-container {
-    max-width: 700px;
-    margin: 0 auto;
-    text-align: center;
-  }
-
-  .founder-quote-card {
-    background-color: rgba(155, 124, 86, 0.03);
-    border-left: 3px solid var(--color-gold);
-    border-radius: 0 12px 12px 0;
-    padding: 50px;
-    position: relative;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.01);
-  }
-
-  .quote-mark {
-    font-size: 120px;
-    color: rgba(155, 124, 86, 0.06);
-    font-family: 'Playfair Display', serif;
-    position: absolute;
-    top: -20px;
-    left: 20px;
-    line-height: 1;
-  }
-
-  .quote-text {
-    font-size: 22px;
-    font-style: italic;
-    color: var(--text-primary);
     line-height: 1.6;
-    margin-bottom: 30px;
-    position: relative;
-    z-index: 1;
-    font-family: 'Playfair Display', serif;
   }
 
-  .founder-signature-block {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .founder-name {
-    font-family: 'Dancing Script', cursive;
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--color-burgundy);
-    margin-bottom: 4px;
-  }
-
-  .founder-role {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    color: var(--text-muted);
-    font-weight: 600;
-    font-family: 'Outfit', sans-serif;
-  }
-
-  /* Responsive styling */
-  @media (max-width: 992px) {
-    .story-pillars-grid {
-      grid-template-columns: 1fr;
-      gap: 20px;
-    }
-    
-    .story-hero-banner {
-      height: 350px;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .story-hero-banner {
-      height: 240px;
-      margin-bottom: 40px;
-      border-radius: 12px;
-    }
-
-    .story-title {
-      font-size: 26px;
-      line-height: 1.4;
-    }
-
-    .founder-quote-card {
-      padding: 30px 20px;
-    }
-
-    .quote-text {
-      font-size: 18px;
-    }
-  }
-
-  /* Empty state & Alerts */
-  .alert {
-    padding: 16px 20px;
-    border-radius: 8px;
-    font-size: 15px;
-    margin-bottom: 30px;
-  }
-
-  .alert-error {
-    background-color: rgba(239, 68, 68, 0.08);
-    border: 1px solid rgba(239, 68, 68, 0.25);
-    color: #b91c1c;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 80px 40px;
-    background-color: var(--bg-surface);
-    border: 1px dashed var(--border-color);
-    border-radius: 12px;
-    max-width: 600px;
-    margin: 40px auto 0;
-  }
-
-  .empty-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-  }
-
-  .empty-state h3 {
-    font-size: 22px;
-    margin-bottom: 8px;
-  }
-
-  .empty-state p {
-    color: var(--text-secondary);
-    margin-bottom: 24px;
-  }
-
-  .btn {
-    display: inline-block;
-    padding: 12px 24px;
-    font-size: 14px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    text-decoration: none;
-    border-radius: 6px;
-    transition: var(--transition-smooth);
-    cursor: pointer;
-  }
-
-  .btn-primary {
-    background-color: var(--color-gold);
-    color: var(--bg-dark);
-    border: 1px solid var(--color-gold);
-  }
-
-  .btn-primary:hover {
-    background-color: var(--color-gold-hover);
-    border-color: var(--color-gold-hover);
-    transform: translateY(-2px);
-  }
-
-  /* Footer */
-  .footer {
-    border-top: 1px solid var(--border-color);
-    padding: 60px 0;
-    color: var(--text-muted);
-    font-size: 14px;
-    margin-top: 80px;
-    background-color: rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(8px);
-  }
-
-  .footer-tagline {
-    font-family: 'Dancing Script', cursive;
-    font-size: 32px;
-    color: var(--color-gold);
-    margin-bottom: 12px;
-    font-weight: 700;
-  }
-
-  /* Home Events Section Styling */
-  .story-events-section {
-    margin-top: 80px;
-    margin-bottom: 80px;
-  }
-
-  .section-header {
-    margin-bottom: 40px;
-  }
-
-  .story-events-grid {
+  /* Events Grid Layout */
+  .events-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 30px;
-    margin-bottom: 40px;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 40px;
+    margin-top: 40px;
   }
 
-  .home-event-card {
+  @media (max-width: 480px) {
+    .events-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .event-card {
     background-color: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-radius: 12px;
@@ -898,41 +601,41 @@ function formatDate(dateStr) {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
   }
 
-  .home-event-card:hover {
-    transform: translateY(-5px);
+  .event-card:hover {
+    transform: translateY(-8px);
     background-color: var(--bg-surface-hover);
-    box-shadow: 0 12px 25px rgba(155, 124, 86, 0.08);
-    border-color: rgba(197, 168, 128, 0.4);
+    box-shadow: 0 15px 35px rgba(155, 124, 86, 0.1);
+    border-color: rgba(197, 168, 128, 0.5);
   }
 
-  .home-event-img-link {
+  .event-card-image-link {
     display: block;
     text-decoration: none;
   }
 
-  .home-event-img-wrapper {
+  .event-card-image-wrapper {
     position: relative;
     width: 100%;
-    padding-top: 56.25%; /* 16:9 Aspect Ratio */
+    padding-top: 60%; /* 5:3 Aspect Ratio */
     background-color: #eee;
     overflow: hidden;
   }
 
-  .home-event-img {
+  .event-card-image {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.4s ease;
+    transition: transform 0.5s ease;
   }
 
-  .home-event-card:hover .home-event-img {
-    transform: scale(1.03);
+  .event-card:hover .event-card-image {
+    transform: scale(1.05);
   }
 
-  .home-event-placeholder {
+  .event-card-placeholder {
     position: absolute;
     top: 0;
     left: 0;
@@ -944,84 +647,124 @@ function formatDate(dateStr) {
     justify-content: center;
   }
 
-  .home-event-placeholder span {
+  .event-card-placeholder span {
     font-family: 'Playfair Display', serif;
-    font-size: 16px;
+    font-size: 20px;
     color: var(--color-gold);
     letter-spacing: 2px;
     text-transform: uppercase;
   }
 
-  .home-event-date {
+  .event-date-badge {
     position: absolute;
-    bottom: 10px;
-    left: 10px;
+    bottom: 15px;
+    left: 15px;
     background-color: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(4px);
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 11px;
+    backdrop-filter: blur(8px);
+    padding: 6px 14px;
+    border-radius: 30px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  }
+
+  .date-text {
+    font-size: 13px;
     font-weight: 600;
     color: var(--color-burgundy);
     letter-spacing: 0.5px;
     text-transform: uppercase;
-    border: 1px solid var(--border-color);
   }
 
-  .home-event-body {
-    padding: 20px;
+  .event-card-content {
+    padding: 24px;
     display: flex;
     flex-direction: column;
     flex-grow: 1;
   }
 
-  .home-event-card-title {
-    font-size: 18px;
+  .event-card-title {
+    font-size: 22px;
     font-weight: 500;
-    line-height: 1.4;
     margin-bottom: 12px;
-    font-family: 'Playfair Display', serif;
+    line-height: 1.4;
   }
 
-  .home-event-card-title a {
+  .event-card-title a {
     color: var(--text-primary);
     text-decoration: none;
     transition: var(--transition-smooth);
   }
 
-  .home-event-card-title a:hover {
+  .event-card-title a:hover {
     color: var(--color-burgundy);
   }
 
-  .home-event-more {
-    font-size: 13px;
+  .event-card-excerpt {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .btn-readmore {
+    margin-top: auto;
+    font-size: 14px;
     font-weight: 600;
     color: var(--color-gold);
     text-decoration: none;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     transition: var(--transition-smooth);
-    margin-top: auto;
     width: fit-content;
   }
 
-  .home-event-more:hover {
+  .btn-readmore svg {
+    transition: transform 0.3s ease;
+  }
+
+  .btn-readmore:hover {
     color: var(--color-burgundy);
   }
 
-  .events-viewall {
-    margin-top: 20px;
+  .btn-readmore:hover svg {
+    transform: translateX(5px);
   }
 
-  .btn-secondary {
-    background-color: transparent;
+  /* Errors / empty states */
+  .error-container, .no-events {
+    padding: 40px;
+    border: 1px dashed var(--border-color);
+    background-color: var(--bg-surface);
+    border-radius: 12px;
+    margin-top: 40px;
+    color: var(--text-secondary);
+  }
+
+  /* Footer */
+  .footer {
+    border-top: 1px solid var(--border-color);
+    background-color: var(--bg-surface);
+    padding: 40px 0;
+    margin-top: auto;
+  }
+
+  .footer-tagline {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-style: italic;
     color: var(--color-gold);
-    border: 1px solid var(--color-gold);
+    margin-bottom: 10px;
   }
 
-  .btn-secondary:hover {
-    background-color: var(--color-gold);
-    color: var(--bg-dark);
-    transform: translateY(-2px);
+  .footer p {
+    color: var(--text-muted);
+    font-size: 14px;
   }
 </style>
