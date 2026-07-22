@@ -24,7 +24,6 @@ try {
     readItems('estella_events', {
       filter: {
         status: { _eq: 'published' },
-        event_date: { _gte: new Date().toISOString() },
         feature_on_homepage: { _eq: true }
       },
       limit: 1
